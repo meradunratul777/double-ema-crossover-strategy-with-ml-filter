@@ -165,6 +165,13 @@ A 1h EMA 9/21 cross fires roughly **0.35–0.6 times per day** (≈ 130–220/yr
 | 2–3 yr | 260–650 | 26–65 | Full M1–M5; M7 if per-fold OOF is stable; M8 only if n ≥ 500 |
 | 5 yr+ | 650–1100 | 65–110 | Full ladder incl. M8 |
 
+**These are estimates and are superseded by the measured count at G1**, which is printed in
+`artifacts/manifest.json` before any model exists. On the 3-year synthetic fixture the observed
+rate was **~0.94 crosses/day (1028 crosses / 3 yr)** — i.e. roughly 340/yr, about 1.6x the high end
+of the estimate above, which is good news for the budget and bad news for the `n/p >= 10` gate only
+in the earliest fold (fold 0: 261 training crosses -> p_max = 26 against a 50-feature pool, so the
+budget rule of §3 binds and is applied there first). The gate logic does not depend on the estimate.
+
 **Budget rule (pre-registered, not tuned on results):** for each outer fold, `p_used ≤ floor(n_train / 10)`. If the candidate pool exceeds that, I drop features by a **pre-declared, training-fold-only** order of operations:
 
 1. Drop mechanically redundant columns (|Spearman| > 0.95 pairs — keep the one with lower mean rank; ties broken by shorter window).
@@ -404,6 +411,23 @@ Real CSV path / instrument / source / tz / range; second instrument CSV. Nothing
 
 ---
 
+## 13.4 Gate status — G1 (recorded 2026-10-29, SYNTHETIC fixture)
+
+| Check | Result |
+|---|---|
+| `prefix_invariance` (2 corruption modes x 5 cut points) | **PASS** |
+| `truncation_invariance` | **PASS** |
+| `shift_by_one` (3-way expectation per feature) | **PASS** |
+| `cross_matrix_invariance` | **PASS** |
+| `static_source_guards` (AST) | **PASS** |
+| Negative controls (`test_detector_catches_*`) | **PASS** — the gate can be made to fail |
+| Unit tests | 39 passing |
+| Labels | 1028 crosses, base rate 0.3765, same-bar ambiguity 0.58%, gap-slip 0.19% |
+| Breakeven hit rate | 0.4000 gross / **0.4139 net of 7 bps** |
+| Splits | 5 walk-forward folds + hold-out (155 crosses, 53 positives); purge/embargo verified per fold |
+
+Every number above is **SYNTHETIC — not tradeable** and is excluded from the report's verdict.
+
 ## 14. Change log (post-approval edits)
 
 | Date | Change | Reason | Approved by |
@@ -420,3 +444,8 @@ Real CSV path / instrument / source / tz / range; second instrument CSV. Nothing
 | 2026-10-29 | Calibrator fit on carve-out only, never refit on full block; cross-fitted variant reported only | A9: refit reuses the carve-out | PI |
 | 2026-10-29 | Cost formula corrected to `cost_bps + 2·slippage_bps` = 7 bps; funding excluded from v1 | Approved cost convention (round-trip fees + per-side slippage) | PI |
 | 2026-10-29 | Feature pool finalised: A1, A2 kept; A3, A4, A5, A6 dropped | PI answer §13.1 | PI |
+| 2026-10-29 | **A2 refinement:** `leak_expectation` is 3-way, not 2-way — close/mixed features must move under a close shift; time-only **and pure-volume** features must be exactly invariant | A volume-only feature (e.g. `volume_z_24`) legitimately does not move when close is shifted. Asserting "changes" for it would false-fail in exactly the way A2 warned about | Me (documented) |
+| 2026-10-29 | `dist_from_sma72_atr` declared an **alias of `sma_gap_72_atr`** and excluded from the pool | It is the same formula; two names for one column is perfect collinearity, which the budget rule would have dropped anyway. Registry keeps it for traceability | Me (documented) |
+| 2026-10-29 | FFD startup governs the **effective warmup**: `max(signal.warmup, longest_ffd_window + 1)`; if that exceeds 25% of the sample, FFD is dropped from the pool and reported | At `|w| <= 1e-5`, FFD needs 2275 bars (d=0.3) / 1458 (d=0.4) / 927 (d=0.5). On the 3-year fixture this is a 2276-bar (8.66%) warmup — a real data cost that must be visible, not absorbed silently. Pre-registered, data-length-based rule; not result-based | Me (documented) |
+| 2026-10-29 | FFD `d` rule implemented as pre-declared: **smallest d with ADF p < 0.05 on the training bars**; if none, the most stationary d, flagged | Plan required ADF selection "on training folds only" but did not fix the tie-break. Fixed before any result existed | Me (documented) |
+| 2026-10-29 | Hold-out gate **hard-fails** on a short sample instead of shrinking the hold-out | A 3,000-bar trial run produced 11 hold-out positives against the A6 gate of 15; the run aborted with guidance. Silently growing the hold-out to reach 15 positives would be exactly the kind of quiet adjustment that invalidates a hold-out | Me (documented) |
