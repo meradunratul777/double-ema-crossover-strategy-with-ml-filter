@@ -8,7 +8,7 @@
   "python": "3.11.2",
   "platform": "Linux-6.1.158+-x86_64-with-glibc2.36",
   "config_sha256": "0df7d21ecba517614c123b0c7f8bc80314ffc55545bae26e8acc84de6cbf8bdc",
-  "plan_sha256": "25aa0456bca5887e06e8232f91f09ce265ab47ab19df99a8000b189772fd40e7",
+  "plan_sha256": "4d94d97cf3b1e613c5317ac35d63665d598f26e01e437359680c7b4c6751cadc",
   "data_source": "synthetic(seed=7, n_bars=26280)",
   "data_frame_sha256": "9996fc7010e2defd1f8dafca366f0a527133b24d25fad4b06a7d6309f036a82b",
   "data_audit": {
@@ -108,5 +108,5 @@
       "offenders": ""
     }
   ],
-  "wall_clock_seconds": 9.33
+  "wall_clock_seconds": 9.49
 }
