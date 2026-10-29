@@ -1,7 +1,7 @@
 # Phase 0 — Modeling plan for approval
 
 **Strategy:** EMA 9/21 crossover, 1h OHLCV bars, ML meta-labeling filter.
-**Status:** DRAFT — awaiting PI approval. **No model, feature, or pipeline code has been written.**
+**Status:** **APPROVED 2026-10-29** with clarifications A1–A9 (folded in, §13.2). Phase 1 in progress. No model code (Phase 3) until this document was committed with those clarifications.
 **Branch:** `arena/d2fd9e09-double-ema-crossover-strategy`
 **Plan hash (pre-registration):** recorded in `docs/plan.sha256` at commit time, before any result is produced. Any post-approval change to this document is logged in §14 (Change log) with a reason.
 
@@ -16,14 +16,14 @@
 | **G0** | You approve this plan | This document, approved |
 | **G1** | Leakage CI green **and** split audit printed | `tests/test_leakage.py`, `artifacts/split_audit.md` — nothing trains before this |
 | **G2** | Label sanity: base rate, same-bar ambiguity rate, overlap/concurrency report, R distribution | `artifacts/label_audit.md` |
-| **G3** | Full ladder M0–M8 run, tuned, all reported (no skips) | `artifacts/ladder.csv` |
+| **G3** | **Every rung whose pre-registered gate passes is run, tuned, and reported.** Skips are reported with the gate value and the observed `n_crosses` (M7 gate `n_crosses ≥ 300`, M8 gate `n_crosses ≥ 500`) — never silently dropped. | `artifacts/ladder.csv` + gate report |
 | **G4** | Diagnostics run for M1/M4/M5/winner; null test complete | `reports/figures/*`, `artifacts/null_dist.csv` |
 | **G5** | Model + calibration + threshold **frozen** (hashed, one-touch ledger opened) | `artifacts/freeze.json` |
 | **G6** | Single hold-out evaluation, three-arm backtest, report, PR opened (not merged) | `reports/report.md`, PR |
 
 The hold-out is evaluated **once**, after G5. If I have to touch it twice, that is a defect and I will report both touches.
 
-### 0.2 What I need from you (blocking for Phase 5, not for Phase 1–4)
+### 0.2 What I need from you (answered 2026-10-29; real CSV still outstanding — blocking for Phase 5 only)
 
 1. **Real CSV path** + instrument (e.g. BTCUSDT, XAUUSD, ES) + exchange/source + **timezone** of the `timestamp` column.
 2. Whether a **second instrument CSV** exists (determines whether §11.6 "not validated on one series" applies).
@@ -85,7 +85,7 @@ G1 is green only when all five pass.
 
 ## 2. Phase 2 — feature engineering spec
 
-**Design principle:** features are computed on the full bar series but *read* only up to `cross_idx`. Every feature is registered in `FEATURE_REGISTRY` with name, window, formula, tier, and rationale; the model receives `X = df[selected_names]` where `selected_names ⊆ registry` — never a positional slice of the frame.
+**Design principle:** features are computed on the full bar series but *read* only up to `cross_idx` (mechanically enforced by the prefix-invariance test in §1.5.1). Every feature is registered in `FEATURE_REGISTRY` with name, window, formula, tier, and rationale; the model receives `X = df[selected_names]` where `selected_names ⊆ registry` — never a positional slice of the frame.
 
 ### 2.1 Base block (Tier A) — 21 features
 
@@ -137,18 +137,18 @@ Rationale: trees can find these but need depth and data; giving them explicitly 
 
 `skew_24, skew_72, kurt_24, kurt_72` of `ret_1`. Tail shape conditions whether a 1.5-ATR target is reachable in a burst or needs a grind.
 
-### 2.8 My proposed additions (beyond your spec) — each is optional, all are Tier B, and **the default recommendation is to drop 2 of them** on sample-size grounds
+### 2.8 My proposed additions (beyond your spec) — decided by PI 2026-10-29: **A1 + A2 kept, A3 + A4 + A5 + A6 dropped**
 
 | Proposed | Formula | Why | My recommendation |
 |---|---|---|---|
-| A1 `clv_cross` | `(close−low)/(high−low)` at cross bar | Close location = rejection/wick asymmetry at the decision bar; 1 column, well-known reversal prior | **Keep** (cheap, distinct) |
-| A2 `consec_cross_24` | count of crosses in last 24 bars | Whipsaw density; directly targets the failure mode of EMA crossovers | **Keep** |
-| A3 `range_z_24` | `(high−low)/ATR` z-scored | Bar-range anomaly = news/liquidity event | Keep only if budget allows |
-| A4 `hours_since_volume_spike` | log1p(bars since `vol_z_24 > 2`) | Participation bursts decay; captures staleness of the cross | Keep only if budget allows |
-| A5 `session_flag` (Asia/London/NY) | from UTC hour | Strong for FX/indices, weak for crypto | **Drop by default** — it duplicates `hour_sin/cos` unless you tell me the instrument is FX/equity-index |
+| A1 `clv_cross` | `(close−low)/(high−low)` at cross bar | Close location = rejection/wick asymmetry at the decision bar; 1 column, well-known reversal prior | **KEPT (approved)** |
+| A2 `consec_cross_24` | count of crosses in last 24 bars | Whipsaw density; directly targets the failure mode of EMA crossovers | **KEPT (approved)** |
+| A3 `range_z_24` | `(high−low)/ATR` z-scored | Bar-range anomaly = news/liquidity event | **DROPPED (PI, 2026-10-29)** |
+| A4 `hours_since_volume_spike` | log1p(bars since `vol_z_24 > 2`) | Participation bursts decay; captures staleness of the cross | **DROPPED (PI, 2026-10-29)** |
+| A5 `session_flag` (Asia/London/NY) | from UTC hour | Strong for FX/indices, weak for crypto | **DROPPED** — instrument unknown; would duplicate `hour_sin/cos` unless FX/equity-index |
 | A6 `funding/basis proxy` | — | Genuinely informative for perp futures | **Not possible** — not in OHLCV; listed in "what would make this better" |
 
-Full pool after additions: **≈ 49 named features** (§3.1 counts the exact number at build time).
+Full pool after the PI's decisions (A1, A2 kept; A3–A6 dropped): **≈ 45 named features**; the exact count is asserted against `FEATURE_REGISTRY` at build time and printed in `artifacts/feature_manifest.json`.
 
 ### 2.9 Feature table in the report
 Every feature ships with: formula, window, tier, one-line rationale, permutation-importance rank (mean ± std across folds), Spearman ρ with realized R, SFI (single-feature-importance) verdict, and kept/dropped status with the reason.
@@ -173,6 +173,16 @@ A 1h EMA 9/21 cross fires roughly **0.35–0.6 times per day** (≈ 130–220/yr
 4. If still over budget: increase regularization (`C` down / `max_depth` down / `min_samples_leaf` up) and record the tradeoff.
 
 **Tradeoff reporting:** the report prints, per fold, `n_train`, `p_candidate`, `p_used`, the dropped list with reason, and the resulting `n/p` ratio. If the ratio is < 10 anywhere, that fold's complexity is called out as under-powered rather than quietly run.
+
+**Minimum-positives gate per fold (new, per clarification A6).** Declared before any result is seen:
+
+| Unit | Minimum positives (`y=1`) | Minimum total rows | Fallback if violated |
+|---|---|---|---|
+| Inner validation fold | **≥ 10** | ≥ 30 | That inner fold's PR-AUC is reported as `under-powered (n_pos=k)`; it is **excluded from the tuning objective mean** but still printed. If ≥ 2 of 3 inner folds are under-powered, the whole outer fold's tuning is flagged and the model's row carries the flag. |
+| Outer validation block | **≥ 15** | ≥ 40 | The fold is **kept and reported**, marked `under-powered`; its PR-AUC gets no headline weight (headline = pooled OOF), and pooled-vs-per-fold disagreement is called out. No fold is ever dropped silently. |
+| Hold-out | **≥ 15** | ≥ 40 | Cannot happen by construction (hold-out boundary rule requires ≥ 40 crosses ≈ ≥ 16 positives), but it is asserted at G5 rather than assumed. |
+
+These counts are printed in `artifacts/split_audit.md` at G1, before any model exists — so if a fold is under-powered we know it *before* seeing results, not after.
 
 **If `n_crosses < 300`:** M1–M3 become the primary ladder; M4/M5 are still run (you asked for no skips) but reported as *under-powered* with the depth/leaf constraints above; M7 stacking is **not** run because stacking OOF predictions from 5 base models on < 300 samples produces a meta-learner trained on noise — it will be listed in the ladder table as `skipped (n<300, stacking OOF unreliable)`. M8 gated at n ≥ 500 per your spec. A "sample-size budget" paragraph goes in the report either way.
 
@@ -207,7 +217,10 @@ All models tuned with **Optuna TPE**, `n_trials ≥ 100`, sampler/seed fixed, Me
 3. **Param stability across outer folds:** for each hyperparameter, report the value chosen per outer fold, the modal value, and a normalized dispersion (IQR / range of the search space). Unstable params (> 50% dispersion) are flagged, and the report says plainly that the tuning surface is flat there — which matters more for credibility than the "best" value.
 4. **Search-space report:** the full grid is emitted as `artifacts/search_spaces.json` and a table in the report.
 5. **Random search fallback:** only if Optuna cannot be installed; the run manifest records which was used. (Optuna is installable here.)
-6. **Runtime honesty:** estimated 2–5 h wall-clock for the ladder at n ≈ 600, p ≈ 30 on 2 vCPU; 4–10 h at n ≈ 1500. If the budget forces a reduction, I reduce **trials**, not models, and log `trials_completed` / `trials_pruned` per model in the report. No model is silently dropped.
+6. **Runtime (revised per clarification A4).** Realistic wall-clock on 2 vCPU / 3 GB with seed-averaging ×5 on trees, nested RFECV in M2, stacking in M7, and the 27-config barrier sweep: **12–48 h**, not the 2–5 h in the draft. Consequences, pre-declared:
+   - **Trials are reduced before models are.** If the budget binds, `n_trials` drops (floor: 100 completed per model is the target; if unreachable, the achieved `trials_completed` / `trials_pruned` is printed per model in the report and the reduction is called a limitation).
+   - **Checkpoint after every model × fold.** Each finished fit writes its result atomically to `artifacts/checkpoints/<model>__<fold>.json`; a rerun skips completed cells and resumes. A killed session can never silently produce a partial ladder that looks complete — the ladder table is assembled from checkpoint files and any missing cell prints as `MISSING`.
+   - Execution is chunked by stage (`audit` → `features` → `ladder` → `diagnose` → `freeze` → `holdout` → `backtest`) so no single command needs to survive a whole session.
 
 ---
 
@@ -237,8 +250,8 @@ Recommend the model with the best validation PR-AUC **that also shows positive n
 
 ### 7.1 Calibration
 - **Method choice is made inside the training block**, never on validation: carve the last 20% (by time) of the outer training block as a calibration set, purge/embargo `max_hold` between fitting data and calibration data. Fit both Platt and isotonic on that split; choose by calibration-set **Brier score** (log loss reported alongside).
-- **Isotonic requires `n_calib ≥ 500`** (it overfits below that and produces step functions with empty/threshold-swallowing bins); below 500 the default is Platt, and the isotonic number is still reported for transparency.
-- After the method is chosen, refit the calibrator on the **full training block** (base model frozen) and log that this refit is the deployed one.
+- **A9 resolution — the calibrator is fit on the carve-out only and is never refit on the full training block.** I reject the "refit after choosing" step from the draft: it lets the calibrator see the carve-out twice (once to choose the method, once to fit), and at `n_train ≈ 300` that is not a rounding error. Cost of this choice: the deployed calibrator is fitted on ~20% of the training block, so its own variance is larger — reported as a bootstrap CI on the calibration curve plus a stability check across folds. For transparency the report **additionally** shows (never selects on) the cross-fitted variant: calibrator fitted on inner-CV out-of-fold scores from the training block. If the carve-out and cross-fitted curves differ materially, both are shown and the deployed one is named.
+- **Isotonic requires `n_calib ≥ 500`** (it overfits below that and produces step functions with empty/threshold-swallowing bins); below 500 the default is Platt, and the isotonic number is still reported for transparency. With the A9 choice (carve-out only), effective `n_calib ≈ 20%` of `n_train`, so **Platt will be the default in most folds** — stated per fold, not assumed.
 - **Reported:** reliability diagram (binned, with bin counts — a reliability diagram without counts hides that the top bins are 3 trades), Brier, log loss, ECE with bootstrap CI, and the calibration slope/intercept on validation. Uncalibrated scores are reported beside calibrated ones so the calibration gain is visible.
 - Note stated in the report: for **threshold-based filtering, calibration does not change the trade set** if the threshold is also mapped through the calibrated score — what it changes is whether "0.55" means 55%.
 
@@ -260,7 +273,7 @@ Run for **M1, M4, M5, and the recommended model** (M1/M4/M5 as required; the win
 | **Learning curves** | Refit with frozen best hyperparameters on expanding fractions (20/40/60/80/100%) of each outer training block, always expanding from the earliest bar, purged each time; report train vs validation PR-AUC and `E_net` vs n. Also the reverse direction (most-recent-only) to detect regime dependence. | Learning (not noise) = validation curve rises with n, train-val gap shrinks or stays bounded. A flat/declining validation curve at n < 1000 is the honest signature of "this dataset cannot support this model" and gets reported as such. |
 | **Permutation importance** | sklearn `permutation_importance`, scoring = average precision, `n_repeats=30`, on each fold's **validation** block; report mean ΔPR-AUC, and the **rank mean ± std across folds**. | Stable ranks across folds = a real signal. Ranks that scramble across folds = the model is picking up fold-specific noise; that is the finding. |
 | **SHAP** | `TreeExplainer` for M4/M5 (and `LinearExplainer`/coefficient path for M1, reported alongside); summary bar + beeswarm on validation, one representative fold documented, plus per-fold sign stability of the top 5. | Any feature that (a) dominates importance, (b) has Spearman |ρ| > 0.5 with realized R, and (c) has no economic story → flagged as a **label proxy** and investigated (the post-hoc leak check in §1.5.4). |
-| **Shuffled-label null** | Permute `y` within training folds, **retrain the full pipeline** (same feature build, splits, tuning protocol, calibration) and re-measure validation PR-AUC. `n_perm = 20` for the winner, `n_perm = 50` for M1 (cheap). Plus a fast complementary check: 200 permutations against *fitted* models (no retrain) to get a tight null for the statistic. | Observed PR-AUC must sit far in the right tail of the null; report the null distribution, its mean/std, and the empirical p-value. If observed ≈ prevalence ≈ null mean, the model is fitting noise and the report says that first. |
+| **Shuffled-label null** | (Scope per clarification A1.) Permute `y` within training folds and **retrain only the recommended model at its frozen hyperparameters — no Optuna** — same feature build, same splits, same calibration protocol, `n_perm = 20`; this is 20 × (one model fit), not 20 × the ladder. Complementary fast check unchanged: 200 permutations against *fitted* models (no retrain) for a tight null of the statistic. | Observed PR-AUC must sit far in the right tail of the null; report the null distribution, mean/std, and empirical p-value. If observed ≈ prevalence ≈ null mean, the model is fitting noise and the report says that first. |
 | **Calibration** | Reliability diagram + Brier (calibrated vs uncalibrated), bootstrapped. | Calibration well off the 45° line at the traded threshold = the filter's probability is not meaningful. |
 | **Threshold stability** | Full τ grid 0.40–0.70 × {hit rate, `E_net`, n accepted}, with bootstrap bands; state where `τ*` sits. | `E_net` positive only in a 0.02-wide spike and negative elsewhere → not robust, reported as such. |
 
@@ -268,10 +281,14 @@ Run for **M1, M4, M5, and the recommended model** (M1/M4/M5 as required; the win
 
 ## 9. Backtest design (Phase 5)
 
-### 9.1 Three arms, per fold and pooled
+### 9.1 Three-arm backtest, plus a fourth control arm
 1. **No filter** — every cross.
 2. **Deterministic regime filter** — take the cross iff `eff_24 > 0.35` at the cross bar (causal: uses only bars ≤ cross).
 3. **ML filter** — take the cross iff calibrated `P(y=1) > τ*`.
+4. **Random filter (control, per clarification A5)** — take crosses at random at **the same acceptance rate** as arm 3 (`n_taken(arm3) / n_crosses`), integer counts matched per fold, seeded, repeated **B = 1000** draws with bootstrap CIs on each metric and on the paired difference vs. arm 1.
+
+Arm 4 exists because a filter that simply takes fewer trades can look better than "take everything" without any skill (fewer trades → lower variance, and the retained subsample is not a random sample of it). The report therefore gives, for arm 3: the paired difference vs. arm 1 **and** its percentile within the arm-4 null distribution (an empirical p-value for "ML filter beats a coin-flip filter at the same acceptance rate"). If arm 3 sits inside the arm-4 distribution, the filter has no demonstrated skill and the verdict says so.
+
 
 ### 9.2 Metrics per arm × fold (+ pooled), with bootstrap CIs
 trades, hit rate, **expectancy in R/trade (gross and net)**, profit factor, turnover (trades/yr), max drawdown (cumulative net R), Sharpe, total R. CIs: 10k trade-level bootstrap **and** a stationary block bootstrap (mean block ≈ 10 trades) because trades cluster in time; if the two disagree materially I report the wider one.
@@ -282,9 +299,16 @@ trades, hit rate, **expectancy in R/trade (gross and net)**, profit factor, turn
 - **Sharpe definition stated explicitly:** per-trade Sharpe `mean(R)/std(R)`, annualized by `√(trades/year)`, labelled as a *trade-level* Sharpe, plus a daily-resampled equity Sharpe for comparison. Not blurred together.
 
 ### 9.3 Cost model (explicit, because it decides the verdict)
-`cost_in_R = (cost_bps + slippage_bps)·1e−4 · 2 · entry_price / (sl_atr · ATR_cross)`, default `cost_bps=5`, `slippage_bps=0`, configurable; applied to every trade in all three arms (so the comparison is fair), and swept in §11.5.
+Per the approved cost convention (`cost_bps` = **round-trip total fees**, `slippage_bps` = **per side**, default 1 → 7 bps total):
 
-### 9.4 Sensitivity (report, never optimize on test)
+`total_bps = cost_bps + 2·slippage_bps` (default `5 + 2·1 = 7`)
+`cost_in_R = total_bps·1e−4 · entry_price / (sl_atr · ATR_cross)`
+
+Applied to every trade in **all four arms** (so the comparison is fair) and swept over `cost_bps ∈ {0,5,10,20}`. At 1h BTC-like volatility (`SL ≈ 1×ATR ≈ 1% of price`), 7 bps ≈ **0.07R** per trade — enough to move the breakeven hit rate from 40% to ~44%, which is the number the verdict turns on.
+
+### 9.4 Sensitivity (report, never optimize on test) — **descriptive only (per clarification A7)**
+The 27-configuration barrier grid × arms is a **robustness table, not a selection device**: the frozen model, frozen calibrator, and frozen `τ*` are reused unchanged in every cell, no significance claim is drawn from any individual cell, and no cell is used to re-pick the model, the threshold, or the barrier defaults. With 27 cells × 4 arms ≈ 100 comparisons, apparent "wins" by chance are the expected outcome, so the report presents the grid as a distribution (how many cells are positive in R, how many beat both baselines) rather than as a set of best-cells. If a barrier setting's whole grid row beats both baselines, that is reported as a pattern; a single strong cell is reported as noise unless it survives the same paired-bootstrap test used in §6.3.
+
 - Barrier: `tp_atr ∈ {1.0, 1.5, 2.0}` × `sl_atr ∈ {0.75, 1.0, 1.5}` × `max_hold ∈ {12, 24, 48}`.
 - Regime rule: `eff_threshold ∈ {0.25, 0.35, 0.45}` × `lookback ∈ {12, 24, 48}`.
 - Cost: `cost_bps ∈ {0, 5, 10, 20}`.
@@ -323,7 +347,7 @@ Every requirement from your brief appears in that structure explicitly; nothing 
 - One CLI: `python -m dema.cli <phase|stage> --config configs/config.yaml [--smoke-test] [--data PATH]`, subcommands: `audit`, `features`, `ladder`, `diagnose`, `freeze`, `holdout`, `backtest`, `sweep`, `report`. Each writes `artifacts/<stage>/manifest.json` with seeds, hashes, row counts, versions, wall-clock.
 - `configs/config.yaml`: data, timeframe, instrument, tz, ema spans, tp/sl/hold, cost/slippage, split geometry (n_folds, embargo, holdout fraction), feature toggles + tier policy, model spaces, trial counts, seeds, output paths. Config hash in every manifest.
 - `requirements.txt` pinned; `make` targets for `test`, `leakage`, `ladder`, `report`.
-- Tests: `test_leakage.py` (§1.5, G1), `test_labels.py` (TP/SL/time-barrier edge cases incl. same-bar and gap-through), `test_splits.py` (purge/embargo arithmetic, no time inversion), `test_costs.py` (cost-in-R formula), `test_no_shuffle_cv.py` (grep guard: no `KFold`/`StratifiedKFold`/`shuffle=True`), `test_reproducibility.py` (same seed → same metrics to 1e-9).
+- Tests: `test_leakage.py` (§1.5, G1), `test_labels.py` (TP/SL/time-barrier edge cases incl. same-bar and gap-through), `test_splits.py` (purge/embargo arithmetic, no time inversion), `test_costs.py` (cost-in-R formula), `test_guards.py` (grep guard, **A8-corrected**: forbids `KFold`, `StratifiedKFold`, `TimeSeriesSplit(shuffle=...)`-style shuffling and any `shuffle=True` passed to a *splitter*; **explicitly whitelists `sklearn.inspection.permutation_importance`**, which permutes feature values within a fold and never reorders time — the earlier blanket "no shuffle" wording would have failed CI on the §8 diagnostics), `test_reproducibility.py` (same seed → same metrics to 1e-9).
 - Determinism: `numpy`/`random`/`optuna`/`torch` seeds set; Optuna TPE seeded; single-threaded where numerics matter; BLAS thread count pinned.
 
 ---
@@ -339,7 +363,37 @@ Every requirement from your brief appears in that structure explicitly; nothing 
 
 ---
 
-## 13. Open questions for you (please answer with the approval)
+## 13. Answers recorded (approved 2026-10-29) — supersedes the draft's questions
+
+### 13.1 Data status
+
+| Item | Answer | Consequence |
+|---|---|---|
+| CSV path / instrument / source / tz / range | **Not supplied** (placeholders arrived) | Phases 1–4 run on synthetic only, **every artifact watermarked `SYNTHETIC — not tradeable`**; hold-out **not run**; no synthetic number may appear in the verdict. The real CSV path is requested again at G5. |
+| Second instrument | **Not supplied** → treat as "no" until provided | Report will carry "**single-series result, not validated**" unless a second CSV arrives. |
+| Costs | `cost_bps = 5` = **round-trip total** fees; `slippage_bps = 1` default; **no funding model in v1** | Cost-in-R formula updated (§9.3): `total_bps = cost_bps + 2·slippage_bps = 7` bps round trip. Funding is listed in "what would make this better". |
+| Torch | **Not installed** | M8 reported as `not run — dependency/gate` (both reasons logged), not dropped. |
+| Hold-out rule | **Approved**; boundary frozen in `freeze.json` at G5 | Unchanged from §1.4. |
+| Feature additions | **Keep A1 (`clv_cross`) + A2 (`consec_cross_24`); drop A3, A4, A6; A5 only for FX/equity-index** | Instrument unknown → **A5 dropped**. Pool: ≈ 45 features (§3.1 count at build). A6 (funding) listed as data limitation. |
+
+### 13.2 Clarifications A1–A9 (all folded into the body)
+
+| # | Resolution | Where |
+|---|---|---|
+| A1 | 20-permutation null retrains **only the recommended model at frozen hyperparameters** (no Optuna), same features/splits/calibration; 200-permutation fitted-model check unchanged | §8, table row "Shuffled-label null" |
+| A2 | Shift-by-1 **kept in restricted form**: same bar index, close-derived features only, timestamp features whitelisted and asserted *invariant*; registry declares `close_derived` | §1.5 test 2 |
+| A3 | G3 reworded: run every rung whose **pre-registered gate passes**, skips reported with gate value and observed `n_crosses` | §0.1 table |
+| A4 | Runtime revised to **12–48 h**; trials reduced before models; **checkpoint per model × fold**; `trials_completed/pruned` logged; staged commands | §5.6 |
+| A5 | **Fourth arm: random filter** at matched acceptance rate, 1000 seeded draws, empirical p-value for arm 3 | §9.1 arm 4 |
+| A6 | **Minimum positives**: ≥ 10 / inner fold, ≥ 15 / outer block, ≥ 15 hold-out, with declared fallbacks (flag and report, never silently drop) | §3 "Minimum-positives gate" |
+| A7 | 27-config sweep is **descriptive only**, no significance claims, no selection | §9.4 |
+| A8 | Grep guard forbids time-shuffling splitters and **whitelists `permutation_importance`** | §11 |
+| A9 | Calibrator fitted on the **carve-out only**, never refit on the full block; cross-fitted variant reported but never selected on | §7.1 |
+
+### 13.3 Still open (needed at G5, not earlier)
+Real CSV path / instrument / source / tz / range; second instrument CSV. Nothing else blocks Phases 1–4.
+
+## 13-old. Original questions (retained for the record)
 
 1. **Data:** CSV path, instrument, source/exchange, `timestamp` timezone, date range. Any known gaps/outages I should be told about?
 2. **Second instrument:** available?
@@ -354,4 +408,15 @@ Every requirement from your brief appears in that structure explicitly; nothing 
 
 | Date | Change | Reason | Approved by |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-10-29 | Plan approved; clarifications A1–A9 folded in (§13.2 index) | PI review | PI |
+| 2026-10-29 | G3 reworded — gate-passing rungs only, skips reported with gate value | A3: contradicted §3 | PI |
+| 2026-10-29 | Shift-by-1 restricted to close-derived features at the same index; timestamp features whitelisted | A2: original form false-fails by construction | PI |
+| 2026-10-29 | Null test scope cut to recommended model at frozen hyperparameters | A1: "full pipeline" = 20× ladder cost | PI |
+| 2026-10-29 | Runtime 2–5 h → **12–48 h**; checkpointing per model × fold added | A4: estimate was optimistic | PI |
+| 2026-10-29 | Fourth (random-filter) arm added to §9.1 | A5: separates skill from "takes fewer trades" | PI |
+| 2026-10-29 | Minimum-positives gate declared (≥10 inner / ≥15 outer / ≥15 hold-out) | A6: small positive counts in folds | PI |
+| 2026-10-29 | Sensitivity grid declared descriptive-only, no selection, no significance | A7 | PI |
+| 2026-10-29 | Grep guard whitelists `permutation_importance`, forbids splitters only | A8 | PI |
+| 2026-10-29 | Calibrator fit on carve-out only, never refit on full block; cross-fitted variant reported only | A9: refit reuses the carve-out | PI |
+| 2026-10-29 | Cost formula corrected to `cost_bps + 2·slippage_bps` = 7 bps; funding excluded from v1 | Approved cost convention (round-trip fees + per-side slippage) | PI |
+| 2026-10-29 | Feature pool finalised: A1, A2 kept; A3, A4, A5, A6 dropped | PI answer §13.1 | PI |
