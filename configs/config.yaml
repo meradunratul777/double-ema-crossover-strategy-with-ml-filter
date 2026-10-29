@@ -1,0 +1,97 @@
+# DEMA meta-labeling filter — configuration
+# Every value here is hashed into every artifact manifest.
+# See docs/PHASE0_MODELING_PLAN.md for the rationale of each block.
+
+run:
+  artifact_dir: artifacts
+  seed: 20261029
+
+data:
+  # Path to a REAL 1h OHLCV CSV with columns: timestamp,open,high,low,close,volume
+  # null + --smoke-test => synthetic series, watermarked "SYNTHETIC - not tradeable".
+  path: null
+  instrument: UNKNOWN
+  source: unknown
+  timezone: UTC          # timezone of the raw `timestamp` column
+  timeframe: 1h
+  max_gap_hours_report: 1.5   # gaps larger than this are counted in the gap census
+
+synthetic:
+  n_bars: 26280          # ~3 years of 1h bars
+  start: "2022-01-01T00:00:00Z"
+  seed: 7
+  # generator knobs (documented in dema/data.py)
+  base_vol: 0.006        # per-bar log-return vol
+  vol_persistence: 0.97  # log-vol AR(1)
+  vol_of_vol: 0.10
+  t_df: 4                # fat-tailed shocks
+  intraday_seasonality: true
+
+signal:
+  ema_fast: 9
+  ema_slow: 21
+  warmup: 200            # bars discarded before the first eligible cross
+
+labels:
+  atr_window: 14
+  tp_atr: 1.5
+  sl_atr: 1.0
+  max_hold: 24
+  # same-bar TP&SL touch -> SL wins (conservative, intrabar order unknown)
+  # gap-through fills at the open, so R can be < -1
+  sl_wins_same_bar: true
+
+costs:
+  cost_bps: 5            # ROUND-TRIP total fees (approved convention)
+  slippage_bps: 1        # PER SIDE; total = cost_bps + 2*slippage_bps
+  funding_bps: 0         # no funding model in v1
+
+splits:
+  n_folds: 5             # walk-forward >= 4 required
+  min_train_frac: 0.35   # fraction of the pre-holdout bar range used as the first training block
+  embargo_bars: null     # null => max_hold
+  holdout_min_crosses: 40
+  holdout_min_frac: 0.15
+  min_pos_inner: 10      # A6 gate, inner validation fold
+  min_pos_outer: 15      # A6 gate, outer validation block
+  min_pos_holdout: 15    # A6 gate, hold-out
+
+features:
+  rank_window: 72        # rolling z-score / percentile window
+  eff_lookback_arm2: 24  # deterministic regime-filter arm
+  eff_threshold_arm2: 0.35
+  ffd_d_values: [0.3, 0.4, 0.5]
+  ffd_adf_p: 0.05
+  # PI decision 2026-10-29: A1 (clv_cross) + A2 (consec_cross_24) kept;
+  # A3 (range_z_24), A4 (hours_since_volume_spike), A5 (session_flag), A6 (funding) dropped.
+  include_a1: true
+  include_a2: true
+  include_a5_session: false
+
+# Phase 3 (not used until G3). Present so the config is complete and hashable.
+models:
+  n_trials: 100
+  inner_folds: 3
+  seed_average: 5
+  spaces:
+    M1: {C: [-3, 2], penalty: [l1, l2], solver: [liblinear, saga], class_weight: [balanced, null]}
+    M2: {step: [1, 2], min_features_to_select: [5, 8, 12, 16]}
+    M3: {half_life: [250, 500, 1000]}
+    M4: {n_estimators: [300, 1000], max_depth: [3, 12], min_samples_leaf: [5, 50], max_features: [sqrt, third, all]}
+    M5: {learning_rate: [0.01, 0.1], max_depth: [2, 6], l2_regularization: [0, 10], max_leaf_nodes: [7, 63]}
+    M7: {C: [-3, 2], penalty: [l1, l2], passthrough: [true, false]}
+    M8: {hidden: [8, 16], layers: [1, 2], dropout: [0, 0.2, 0.4], lr: [1e-4, 1e-2]}
+  gates:
+    M7_min_crosses: 300
+    M8_min_crosses: 500
+  torch_available: false
+
+threshold:
+  grid: [0.40, 0.70, 0.01]
+  min_accepted: 20
+  min_accepted_per_fold: 5
+
+backtest:
+  n_bootstrap: 10000
+  block_size: 10
+  random_filter_draws: 1000

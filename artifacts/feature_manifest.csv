@@ -1,0 +1,55 @@
+feature,tier,scope,source,window,transform,shift_expectation,alias_of,rationale,in_model_pool
+ret_1,A,bar,close,1,continuous,changes,,log return over 1h: the local impulse producing the cross,True
+ret_3,A,bar,close,3,continuous,changes,,log return over 3h: the local impulse producing the cross,True
+ret_6,A,bar,close,6,continuous,changes,,log return over 6h: the local impulse producing the cross,True
+ret_12,A,bar,close,12,continuous,changes,,log return over 12h: the local impulse producing the cross,True
+ret_24,A,bar,close,24,continuous,changes,,log return over 24h: the local impulse producing the cross,True
+rv_24,A,bar,close,24,continuous,changes,,realized vol over 24h: level of risk / TP reachability,True
+eff_24,A,bar,close,24,continuous,changes,,path efficiency over 24h: directional vs choppy approach to the cross,True
+skew_24,D,bar,close,24,continuous,changes,,return skew over 24h: burst asymmetry,True
+kurt_24,D,bar,close,24,continuous,changes,,return kurtosis over 24h: tail-shape of the recent path,True
+rv_72,A,bar,close,72,continuous,changes,,realized vol over 72h: level of risk / TP reachability,True
+eff_72,A,bar,close,72,continuous,changes,,path efficiency over 72h: directional vs choppy approach to the cross,True
+skew_72,D,bar,close,72,continuous,changes,,return skew over 72h: burst asymmetry,True
+kurt_72,D,bar,close,72,continuous,changes,,return kurtosis over 72h: tail-shape of the recent path,True
+autocorr_1_24,A,bar,close,24,continuous,changes,,lag-1 autocorrelation of 1h returns: persistence vs mean reversion,True
+atr_ratio_14_72,A,bar,close,72,continuous,changes,,ATR14/ATR72: vol expansion or contraction at the cross,True
+sma_gap_72_atr,A,bar,close,72,continuous,changes,,distance from the 72h SMA in ATR units: stretched or anchored,True
+sma_slope_24,A,bar,close,24,continuous,changes,,"72h SMA slope over 24h, in ATR/bar: trend direction and speed",True
+sma_slope_72,A,bar,close,72,continuous,changes,,"72h SMA slope over 72h, in ATR/bar: slower trend",True
+volume_z_24,A,bar,volume,24,continuous,invariant,,volume z-score: participation at the cross,True
+volume_z_72,A,bar,volume,72,continuous,invariant,,slower volume z-score: baseline participation,True
+hour_sin,A,bar,time,,continuous,invariant,,cyclical UTC hour: session seasonality without fake ordinality,True
+hour_cos,A,bar,time,,continuous,invariant,,cyclical UTC hour: session seasonality without fake ordinality,True
+dow_sin,A,bar,time,,continuous,invariant,,cyclical day-of-week: session seasonality without fake ordinality,True
+dow_cos,A,bar,time,,continuous,invariant,,cyclical day-of-week: session seasonality without fake ordinality,True
+has_gap_24,A,bar,time,24,continuous,invariant,,any data gap > 1.5h in the last 24 bars: data-quality confounder,True
+vret_1,B,bar,close,1,continuous,changes,,return over 1h normalised by rolling 1h vol: regime-free momentum,True
+vret_3,B,bar,close,3,continuous,changes,,return over 3h normalised by rolling 1h vol: regime-free momentum,True
+vret_6,B,bar,close,6,continuous,changes,,return over 6h normalised by rolling 1h vol: regime-free momentum,True
+vret_12,B,bar,close,12,continuous,changes,,return over 12h normalised by rolling 1h vol: regime-free momentum,True
+vret_24,B,bar,close,24,continuous,changes,,return over 24h normalised by rolling 1h vol: regime-free momentum,True
+ffd_03,F,bar,close,,continuous,changes,,fractional difference of log close at d=0.3: stationary but memory-preserving,False
+ffd_04,F,bar,close,,continuous,changes,,fractional difference of log close at d=0.4: stationary but memory-preserving,False
+ffd_05,F,bar,close,,continuous,changes,,fractional difference of log close at d=0.5: stationary but memory-preserving,False
+ffd_selected,F,cross,close,,continuous,changes,,fractional difference of log close at d selected by ADF on the TRAINING folds only (one d enters the model; all three are reported),True
+cross_side,X,cross,close,,categorical,changes,,long/short leg of the cross; the two legs are not symmetric,True
+bars_since_prev_cross,X,cross,close,,continuous,changes,,bars since the previous cross: fresh move vs whipsaw,True
+ema_spread_atr,X,cross,close,,continuous,changes,,|EMA9-EMA21|/ATR at the cross: how decisive the cross is,True
+ema_spread_pctile_72,X,cross,close,72,continuous,changes,,percentile of the EMA spread in its trailing 72h window,True
+ema9_slope_atr,X,cross,close,6,continuous,changes,,EMA9 slope per bar in ATR units: fast-leg momentum,True
+ema21_slope_atr,X,cross,close,6,continuous,changes,,EMA21 slope per bar in ATR units: slow-leg momentum,True
+dist_from_ema21_atr,X,cross,close,,continuous,changes,,close minus EMA21 in ATR units: extension at the cross,True
+atr_pctile_72,X,cross,close,72,continuous,changes,,ATR percentile in trailing 72h: vol regime at the cross,True
+volume_z_at_cross,X,cross,volume,24,continuous,invariant,,volume z-score on the cross bar,True
+volume_trend_12,X,cross,volume,12,continuous,invariant,,log(mean vol 6h / mean vol 12h): rising or fading participation,True
+signed_volume_z_24,X,cross,mixed,24,continuous,changes,,"volume z-score signed by return direction, averaged over 24h: buy/sell pressure",True
+clv_cross,B,cross,close,,continuous,changes,,close location value on the cross bar: wick/rejection asymmetry,True
+consec_cross_24,B,cross,close,24,continuous,changes,,number of crosses in the last 24h: whipsaw density,True
+eff_pctile_72,R,cross,close,72,continuous,changes,,path-efficiency percentile: regime-relative directionality,True
+rv_pctile_72,R,cross,close,72,continuous,changes,,realized-vol percentile: regime-relative risk,True
+dist_from_sma72_atr,R,cross,close,72,continuous,changes,sma_gap_72_atr,alias of sma_gap_72_atr (same formula); excluded from the model pool to avoid perfect collinearity,False
+side_x_ema_spread,I,cross,mixed,,continuous,changes,,cross_side x ema_spread_atr: decisiveness differs by leg,True
+side_x_eff_pctile,I,cross,mixed,72,continuous,changes,,cross_side x efficiency percentile: trend-following edge by leg,True
+side_x_vol_pctile,I,cross,mixed,72,continuous,changes,,cross_side x vol percentile: vol sensitivity by leg,True
+eff_x_vol_pctile,I,cross,mixed,72,continuous,changes,,efficiency x vol percentile: clean trends need room to run,True

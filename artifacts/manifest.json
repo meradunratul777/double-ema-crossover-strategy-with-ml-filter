@@ -1,0 +1,112 @@
+{
+  "stage": "audit",
+  "gate": "G1",
+  "gate_green": true,
+  "synthetic": true,
+  "watermark": "SYNTHETIC - not tradeable",
+  "dema_version": "0.1.0",
+  "python": "3.11.2",
+  "platform": "Linux-6.1.158+-x86_64-with-glibc2.36",
+  "config_sha256": "0df7d21ecba517614c123b0c7f8bc80314ffc55545bae26e8acc84de6cbf8bdc",
+  "plan_sha256": "4d94d97cf3b1e613c5317ac35d63665d598f26e01e437359680c7b4c6751cadc",
+  "data_source": "synthetic(seed=7, n_bars=26280)",
+  "data_frame_sha256": "9996fc7010e2defd1f8dafca366f0a527133b24d25fad4b06a7d6309f036a82b",
+  "data_audit": {
+    "source": "synthetic(seed=7, n_bars=26280)",
+    "synthetic": true,
+    "n_rows": 26280,
+    "n_rows_dropped": 0,
+    "start": "2022-01-01 00:00:00+00:00",
+    "end": "2024-12-30 23:00:00+00:00",
+    "median_bar_seconds": 3600.0,
+    "n_gaps": 0,
+    "longest_gap_hours": 0.0,
+    "duplicates": 0,
+    "unsorted": 0,
+    "negative_or_zero_prices": 0,
+    "negative_volume": 0,
+    "nan_rows": 0,
+    "bad_ohlc": 0,
+    "issues": [
+      "SYNTHETIC - not tradeable"
+    ]
+  },
+  "warmup": {
+    "configured_warmup": 200,
+    "ffd_weight_lengths": {
+      "0.3": 2275,
+      "0.4": 1458,
+      "0.5": 927
+    },
+    "ffd_startup_bars": 2275,
+    "ffd_dropped_for_sample_size": false,
+    "effective_warmup": 2276,
+    "pct_of_sample_in_warmup": 8.66
+  },
+  "labels": {
+    "n_crosses_detected": 1028,
+    "n_unenterable_crosses_dropped": 0,
+    "n_complete": 1028,
+    "n_truncated": 0,
+    "n_invalid_atr": 0
+  },
+  "label_summary": {
+    "base_rate": 0.3764591439688716,
+    "breakeven_hit_rate_gross": 0.4,
+    "breakeven_hit_rate_net": 0.41392257886542533,
+    "mean_R_gross": -0.037762649113229574,
+    "mean_R_net": -0.10086681325168896,
+    "median_cost_R": 0.059388821183696525,
+    "n_complete": 1028,
+    "ambiguous_rate": 0.005836575875486381,
+    "gap_slip_rate": 0.0019455252918287938
+  },
+  "split_boundaries": {
+    "n_bars": 26280,
+    "n_crosses_complete": 1028,
+    "holdout_start_bar": 22525,
+    "holdout_n": 155,
+    "holdout_pos": 53,
+    "final_train_n": 870,
+    "embargo_bars": 24,
+    "n_folds": 5,
+    "first_train_end_bar": 7884,
+    "split_fingerprint": "91aa5d1148ae1750c0c670cb7a61e96f7e10b381b7c200f863ad23ee97f5a080"
+  },
+  "split_fingerprint": "91aa5d1148ae1750c0c670cb7a61e96f7e10b381b7c200f863ad23ee97f5a080",
+  "n_features_registered": 54,
+  "n_features_model_pool": 50,
+  "leakage": [
+    {
+      "test": "prefix_invariance",
+      "passed": true,
+      "detail": "checked 5 cut points x 2 corruption modes (40 bar features); future bars never influence past features",
+      "offenders": ""
+    },
+    {
+      "test": "truncation_invariance",
+      "passed": true,
+      "detail": "checked 5 cut points: each feature's value at bar t is reproduced from bars <= t alone",
+      "offenders": ""
+    },
+    {
+      "test": "shift_by_one",
+      "passed": true,
+      "detail": "33 bar features checked at the same index: 7 time-only features asserted exactly invariant, the rest asserted to move",
+      "offenders": ""
+    },
+    {
+      "test": "cross_matrix_invariance",
+      "passed": true,
+      "detail": "checked 3 cross rows: truncating the series after the cross leaves that cross's features unchanged",
+      "offenders": ""
+    },
+    {
+      "test": "static_source_guards",
+      "passed": true,
+      "detail": "AST scan of 2 modules for negative shifts, centred windows, adjust=True",
+      "offenders": ""
+    }
+  ],
+  "wall_clock_seconds": 9.49
+}

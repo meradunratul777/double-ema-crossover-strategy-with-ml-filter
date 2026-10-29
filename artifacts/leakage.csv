@@ -1,0 +1,6 @@
+test,passed,detail,offenders
+prefix_invariance,True,checked 5 cut points x 2 corruption modes (40 bar features); future bars never influence past features,
+truncation_invariance,True,checked 5 cut points: each feature's value at bar t is reproduced from bars <= t alone,
+shift_by_one,True,"33 bar features checked at the same index: 7 time-only features asserted exactly invariant, the rest asserted to move",
+cross_matrix_invariance,True,checked 3 cross rows: truncating the series after the cross leaves that cross's features unchanged,
+static_source_guards,True,"AST scan of 2 modules for negative shifts, centred windows, adjust=True",
